@@ -47,6 +47,12 @@ class ItemBase(BaseModel):
 class ItemCreate(ItemBase):
     pass
 
+class EditDeleteRequest(BaseModel):
+    id: int
+
+class AddRequest(BaseModel):
+    content: str
+
 # データを読み取る時に使用するモデル（レスポンスモデル）
 class ItemResponse(ItemBase):
     id: int
@@ -155,6 +161,132 @@ async def api_rag_search(item: SearchRequest):
         "result": response.data.content
     }    
 
+#
+#
+#
+def get_pg_conn():
+    conn = psycopg2.connect(
+        dbname="mydb",
+        user="root",
+        password="admin",
+        host="localhost",
+        port=5432
+    )
+    return conn
+
+#
+#
+#
+@app.post("/api/edit_create")
+async def edit_create(item: AddRequest):
+    # PostgreSQL 接続
+    conn = get_pg_conn()
+    register_vector(conn)
+    print("query=" + item.content)
+    in_text = item.content
+
+    print("in_text=" + in_text)
+    
+    embedding = ollama.embeddings(
+        model="qwen3-embedding:0.6b",
+        prompt=in_text
+    )
+    vec = embedding["embedding"]
+
+    print(len(vec))
+    print(vec[:5])  
+    # SQL へ挿入
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO documents (content, embedding) VALUES (%s, %s)",
+            (in_text, vec)
+        )
+        conn.commit()
+
+    return {
+        "status": "success",
+        "result": ""
+    } 
+#
+#
+#
+@app.post("/api/edit_delete")
+async def edit_delete(item: EditDeleteRequest):
+    # PostgreSQL 接続
+    conn = get_pg_conn()
+    register_vector(conn)
+
+    print("edit_delete.id=" + str(item.id) )
+    id = item.id
+    # 1件削除
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM documents WHERE id= %s",
+            (id,)
+        )
+        conn.commit()   
+
+    return {
+        "status": "success",
+        "result": ""
+    }  
+    
+#
+#
+#
+@app.post("/api/edit_list")
+async def edit_list(item: SearchRequest):
+    # PostgreSQL 接続
+    conn = get_pg_conn()
+
+    # pgvector を psycopg2 に登録
+    register_vector(conn)
+
+    print("ChromaDB クライアントを初期化しました。")
+    print("query=" + item.query)
+    query = item.query
+
+    print("query=" + query)
+
+    try:
+        sorted_results = []
+        cur = conn.cursor()
+        if query == "":
+            SQL_QUERY = """
+            SELECT
+                id,
+                content
+            FROM
+                documents
+            ORDER BY
+                id DESC
+            LIMIT 100;
+            """
+            cur.execute(SQL_QUERY)
+        else:
+            SQL_QUERY = f"SELECT id, content FROM documents WHERE content LIKE '%{query}%'" 
+            SQL_QUERY += " ORDER BY id DESC LIMIT 100" 
+            print("SQL_QUERY=" + SQL_QUERY)
+            cur.execute(SQL_QUERY)
+
+        rows = cur.fetchall()
+        for row in rows:
+            print(row)
+            sorted_results.append({
+                "id": row[0],
+                "content": row[1],
+            })
+        cur.close()
+        conn.close()
+
+        return {
+            "status": "success",
+            "result": sorted_results
+        }
+    except ValueError:
+        # 指定されたコレクションが存在しない場合のエラー処理
+        print("500 エラー")
+
 # POST-Test
 @app.post("/post_test")
 def post_text_api(item: ItemCreate):
@@ -162,6 +294,25 @@ def post_text_api(item: ItemCreate):
 
 @app.get("/", response_class=HTMLResponse)
 async def home_page():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>FastAPI Static Files</title>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <link href="/static/main.css" rel="stylesheet"/>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/static/client.js"></script>
+    </body>
+    </html>
+    """
+#
+#
+#
+@app.get("/edit", response_class=HTMLResponse)
+async def edit_page():
     return """
     <!DOCTYPE html>
     <html>

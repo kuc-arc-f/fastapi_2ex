@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import AgentUtil from './lib/AgentUtil';
 import ApiUtil from '../lib/ApiUtil';
 import { toolSampleAgent } from '../agent/tool-sample-agent';
+import Head from '../components/Head'
 
 export default function Chat() {
   const [text, setText] = useState<string>("");
@@ -52,6 +53,7 @@ export default function Chat() {
 
   return (
   <div className="mb-[200px]">
+    <Head />
     <div className="flex flex-col w-full max-w-3xl py-4 mx-auto gap-4">
       <div className="flex flex-col gap-2 px-4 bg-white">
         <h1 className="text-2xl font-bold">RAG-Chat</h1>
