@@ -61,4 +61,6 @@ CREATE TABLE documents (
 ***
 ### blog
 
+https://zenn.dev/knaka0209/scraps/2590884be8cc38
+
 ***
