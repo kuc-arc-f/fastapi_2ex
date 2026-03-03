@@ -54,4 +54,6 @@ python search.py --query hello
 ***
 ### blog
 
+https://zenn.dev/knaka0209/scraps/2656c13ddbbf25
+
 ***
